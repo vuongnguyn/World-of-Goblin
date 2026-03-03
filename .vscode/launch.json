@@ -8,6 +8,13 @@
       "type": "java",
       "name": "Main",
       "request": "launch",
+      "mainClass": "World_of_Goblin.Main",
+      "projectName": "World_of_Goblin_8d664274"
+    },
+    {
+      "type": "java",
+      "name": "Main",
+      "request": "launch",
       "mainClass": "Main",
       "projectName": "World_of_Goblin_8d664274"
     },
