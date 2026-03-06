@@ -1,4 +1,4 @@
-package World_of_Goblin.view;
+package view;
 
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -6,17 +6,15 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
-import World_of_Goblin.Main;
 
 import java.util.Objects;
 
 public class Menu {
 
-    public Scene menuScene(Stage stage, Main main) {
+    public Scene menuScene(Stage stage) {
 
         Pane root = new Pane();
 
-        // ===== LOAD BACKGROUND =====
         Image bgImage = new Image(
                 Objects.requireNonNull(
                         getClass().getResource("file:assets/image/menu_background.png")
@@ -33,13 +31,7 @@ public class Menu {
 
         root.setBackground(new Background(backgroundImage));
 
-        // ===== BUTTON =====
-        Button buttonJoinGame = createButton(300, 200, "assets/image/new_game.png");
-
-        // Ví dụ thêm sự kiện
-        buttonJoinGame.setOnAction(e -> {
-            System.out.println("Join Game clicked");
-        });
+        Button buttonJoinGame = createButton(300, 200, "file:assets/image/new_game.png");
 
         root.getChildren().add(buttonJoinGame);
 
