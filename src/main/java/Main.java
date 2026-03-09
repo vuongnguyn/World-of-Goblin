@@ -12,61 +12,21 @@ import javafx.scene.layout.BackgroundSize;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import java.util.Objects;
+import view.MenuScene;
 
 public class Main extends Application {
 
+    private boolean isContinue = false;
     private Stage primaryStage;
-
-    public Scene menuScene() {
-        System.out.println(getClass().getResource("assets/images/menu_background.png"));
-
-        Pane root = new Pane();
-
-        Image bgImage = new Image(
-                Objects.requireNonNull(
-                        getClass().getResource("assets/images/menu_background.png")
-                ).toExternalForm()
-        );
-
-        BackgroundImage backgroundImage = new BackgroundImage(
-                bgImage,
-                BackgroundRepeat.NO_REPEAT,
-                BackgroundRepeat.NO_REPEAT,
-                BackgroundPosition.DEFAULT,
-                new BackgroundSize(800, 600, false, false, false, false)
-        );
-
-        Button button = createButton(100, 100, "assets/images/download.png");
-
-        root.setBackground(new Background(backgroundImage));
-        root.getChildren().add(button);
-
-        return new Scene(root, 800, 600);
-    }
-
-    private Button createButton(double x, double y, String imagePath) {
-
-        Image image = new Image(
-                Objects.requireNonNull(
-                        getClass().getResource(imagePath)
-                ).toExternalForm()
-        );
-
-        ImageView imageView = new ImageView(image);
-
-        Button button = new Button();
-        button.setGraphic(imageView);
-        button.setStyle("-fx-background-color: transparent;-fx-border-color: transparent;");
-
-        button.setLayoutX(x);
-        button.setLayoutY(y);
-        button.setPrefSize(100, 80);
-
-        return button;
-    }
-
+    private MenuScene menu = new MenuScene();
+    
     public void showMenu() {
-        Scene scene = menuScene();
+        Scene scene;
+        if (isContinue) {
+            scene = menu.menuSceneWithContinue();
+        } else {
+            scene = menu.menuSceneWithoutContinue();
+        }
         primaryStage.setScene(scene);
     }
 

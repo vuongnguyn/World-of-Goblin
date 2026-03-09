@@ -44,4 +44,6 @@ public abstract class GameObject {
         this.image = new Image(imagePath);
     }
 
+    public abstract void update();
+    public abstract void render();
 }

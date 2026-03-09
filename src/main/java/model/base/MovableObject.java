@@ -22,4 +22,20 @@ public class MovableObject extends GameObject {
     public void setSpeed(double speed) {
         this.speed = speed;
     }
+    
+    @Override
+    public void update() {
+        if (dx != 0 && dy != 0) {
+            double length = Math.sqrt(dx * dx + dy * dy);
+            dx /= length;
+            dy /= length;
+        }
+        x += dx * speed;
+        y += dy * speed;
+    }
+
+    @Override
+    public void render() {
+        
+    }
 }
