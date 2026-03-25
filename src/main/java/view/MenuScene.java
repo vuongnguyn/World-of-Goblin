@@ -5,11 +5,20 @@ import javafx.scene.control.Button;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
-import javafx.stage.Stage;
+
 
 import java.util.Objects;
 
 public class MenuScene {
+
+    private Runnable onNewGame;
+    private Runnable onContinue;
+    private Runnable onExit;
+
+    public void setOnNewGame(Runnable r) { this.onNewGame = r; }
+    public void setOnContinue(Runnable r) { this.onContinue = r; }
+    public void setOnExit(Runnable r)     { this.onExit = r; }
+
 
     // This method creates a menu scene with where has continue button
     public Scene menuSceneWithContinue() {
@@ -56,21 +65,10 @@ public class MenuScene {
         Button buttonContinue = createButton(272, 370);
         Button buttonSetting = createButton(272, 440);
         Button buttonExit = createButton(272, 510);
-        buttonNewGame.setOnAction(e -> {
-                System.out.println("New Game button clicked");
-        });
-
-        buttonContinue.setOnAction(e -> {
-                System.out.println("Continue button clicked");
-        });
-
-        buttonSetting.setOnAction(e -> {
-                System.out.println("Setting button clicked");
-        });
-
-        buttonExit.setOnAction(e -> {
-                System.out.println("Exit button clicked");
-        });
+        buttonNewGame.setOnAction(e  -> { if (onNewGame  != null) onNewGame.run(); });
+        buttonContinue.setOnAction(e -> { if (onContinue != null) onContinue.run(); });
+        buttonSetting.setOnAction(e  -> System.out.println("Settings – coming soon"));
+        buttonExit.setOnAction(e     -> { if (onExit     != null) onExit.run(); });
 
         root.setBackground(new Background(backgroundImage));
         root.getChildren().addAll(menuButtonImageView, logoImageView);
@@ -123,17 +121,9 @@ public class MenuScene {
         Button buttonNewGame = createButton(272, 300);
         Button buttonSetting = createButton(272, 370);
         Button buttonExit = createButton(272, 440);
-        buttonNewGame.setOnAction(e -> {
-                System.out.println("New Game button clicked");
-        });
-
-        buttonSetting.setOnAction(e -> {
-                System.out.println("Setting button clicked");
-        });
-
-        buttonExit.setOnAction(e -> {
-                System.out.println("Exit button clicked");
-        });
+        buttonNewGame.setOnAction(e -> { if (onNewGame != null) onNewGame.run(); });
+        buttonSetting.setOnAction(e  -> System.out.println("Settings – coming soon"));
+        buttonExit.setOnAction(e     -> { if (onExit    != null) onExit.run(); });
 
         root.setBackground(new Background(backgroundImage));
         root.getChildren().addAll(menuButtonImageView, logoImageView);

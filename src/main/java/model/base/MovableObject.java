@@ -22,16 +22,21 @@ public class MovableObject extends GameObject {
     public void setSpeed(double speed) {
         this.speed = speed;
     }
+
+    public void setDx(double dx) { this.dx = dx; }
+    public void setDy(double dy) { this.dy = dy; }
     
     @Override
     public void update() {
-        if (dx != 0 && dy != 0) {
-            double length = Math.sqrt(dx * dx + dy * dy);
-            dx /= length;
-            dy /= length;
+        // Use local direction vars so dx/dy are not permanently normalized
+        double dirX = dx, dirY = dy;
+        if (dirX != 0 && dirY != 0) {
+            double length = Math.sqrt(dirX * dirX + dirY * dirY);
+            dirX /= length;
+            dirY /= length;
         }
-        x += dx * speed;
-        y += dy * speed;
+        // setPosition uses the public API — x and y are private in GameObject
+        setPosition(getX() + dirX * speed, getY() + dirY * speed);
     }
 
     @Override

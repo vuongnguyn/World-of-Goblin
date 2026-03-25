@@ -1,17 +1,17 @@
 package model.base;
 
-import javafx.scene.image.Image;
+// import javafx.scene.image.Image; // TODO: uncomment when image assets are ready
 
 public abstract class GameObject {
     private double x, y, width, height;
-    private Image image;
+    // private Image image; // TODO: uncomment when image assets are ready
 
     public GameObject(double x, double y, double width, double height, String imagePath) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
-        image = new Image(imagePath);
+        // image = new Image(imagePath); // TODO: uncomment when image assets are ready
     }
 
     public double getX() {
@@ -41,7 +41,7 @@ public abstract class GameObject {
     }
 
     public void setPath(String imagePath) {
-        this.image = new Image(imagePath);
+        // this.image = new Image(imagePath); // TODO: uncomment when image assets are ready
     }
 
     public abstract void update();

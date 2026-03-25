@@ -41,10 +41,12 @@ public class CharacterObject extends MovableObject {
     public void update() {
         // Implement character-specific update logic here
         super.update();
-        if (x < 0) x = 0;
-        if (x + width > 800) x = 800 - width;
-        if (y < 0) y = 0;
-        if (y + height > 600) y = 600 - height;
+        double nx = getX(), ny = getY(), w = getWidth(), h = getHeight();
+        if (nx < 0) nx = 0;
+        if (nx + w > 800) nx = 800 - w;
+        if (ny < 0) ny = 0;
+        if (ny + h > 600) ny = 600 - h;
+        setPosition(nx, ny);
     }
 
     @Override
