@@ -21,8 +21,8 @@ import java.util.Set;
 
 public class GameManager {
     public static final int TILE_SIZE = 32;
-    public static final int MAP_COLS = 30;
-    public static final int MAP_ROWS = 20;
+    public static final int MAP_COLS = 100;
+    public static final int MAP_ROWS = 100;
 
     private Player player;
     private GameState gameState;
@@ -48,55 +48,56 @@ public class GameManager {
     }
 
     public void initializeGame() {
-        player = new Player(96, 96, 40, 40, "" /* TODO: "assets/images/player.png" */, 3.0, 150, 20);
+        player = new Player(MAP_COLS * TILE_SIZE / 2.0, MAP_ROWS * TILE_SIZE / 2.0, 40, 40, "", 3.0, 150, 20);
         enemies = new ArrayList<>();
         activeSkills = new ArrayList<>();
-        tileMap = loadMap("assets/map/map_1.txt");
-        spawnEnemiesFromMap();
+        tileMap = generateMap();
         gameState = GameState.PLAYING;
     }
 
-    private int[][] loadMap(String relativePath) {
+    private int[][] generateMap() {
         int[][] map = new int[MAP_ROWS][MAP_COLS];
-        try {
-            // Try 1: relative to this class file (controller/../assets/map/map_1.txt)
-            java.net.URL url = getClass().getResource("../" + relativePath);
-            // Try 2: from classpath root (for IDEs that put assets at root)
-            if (url == null) url = getClass().getClassLoader().getResource(relativePath);
-            if (url == null) {
-                System.err.println("[GameManager] Could not find map resource: " + relativePath);
-                return map;
-            }
-            java.io.BufferedReader reader = new java.io.BufferedReader(
-                    new java.io.InputStreamReader(url.openStream()));
-            int row = 0;
-            String line;
-            while ((line = reader.readLine()) != null && row < MAP_ROWS) {
-                for (int col = 0; col < Math.min(line.length(), MAP_COLS); col++) {
-                    map[row][col] = Character.getNumericValue(line.charAt(col));
+        for (int r = 0; r < MAP_ROWS; r++) {
+            for (int c = 0; c < MAP_COLS; c++) {
+                if (r == 0 || r == MAP_ROWS - 1 || c == 0 || c == MAP_COLS - 1) {
+                    map[r][c] = 1; // Wall
+                } else {
+                    map[r][c] = 0; // Floor
+                    // Random small walls
+                    if (Math.random() < 0.05) {
+                        map[r][c] = 1;
+                    } else if (Math.random() < 0.02) { // Random enemies
+                        double rand = Math.random();
+                        if (rand < 0.4) map[r][c] = 2; // Robber
+                        else if (rand < 0.8) map[r][c] = 3; // Monster
+                        else map[r][c] = 4; // Terrorist
+                        
+                        double ex = c * TILE_SIZE;
+                        double ey = r * TILE_SIZE;
+                        if (rand < 0.4) enemies.add(new Robber(ex, ey));
+                        else if (rand < 0.8) enemies.add(new Monster(ex, ey));
+                        else enemies.add(new Terrorist(ex, ey));
+                    }
                 }
-                row++;
             }
-            reader.close();
-        } catch (java.io.IOException e) {
-            e.printStackTrace();
         }
+        // clear spawn area
+        int cx = MAP_COLS / 2;
+        int cy = MAP_ROWS / 2;
+        for (int r = cy - 4; r <= cy + 4; r++) {
+            for (int c = cx - 4; c <= cx + 4; c++) {
+                if (r >= 0 && r < MAP_ROWS && c >= 0 && c < MAP_COLS) {
+                    map[r][c] = 0;
+                }
+            }
+        }
+        // remove enemies from spawn area
+        enemies.removeIf(e -> Math.hypot(e.getX() - cx * TILE_SIZE, e.getY() - cy * TILE_SIZE) < 200);
+
         return map;
     }
 
-    private void spawnEnemiesFromMap() {
-        for (int row = 0; row < MAP_ROWS; row++) {
-            for (int col = 0; col < MAP_COLS; col++) {
-                double ex = col * TILE_SIZE;
-                double ey = row * TILE_SIZE;
-                switch (tileMap[row][col]) {
-                    case 2 -> enemies.add(new Robber(ex, ey));
-                    case 3 -> enemies.add(new Monster(ex, ey));
-                    case 4 -> enemies.add(new Terrorist(ex, ey));
-                }
-            }
-        }
-    }
+    // Map loaded dynamically now, keeping empty block for removed functions.
 
     public void handleInput(KeyCode keyCode, boolean isPressed) {
         if (isPressed) {
@@ -118,6 +119,10 @@ public class GameManager {
         player.setDx(pdx);
         player.setDy(pdy);
         player.update();
+        player.setPosition(
+            Math.max(TILE_SIZE, Math.min(player.getX(), (MAP_COLS - 1) * TILE_SIZE - player.getWidth())),
+            Math.max(TILE_SIZE, Math.min(player.getY(), (MAP_ROWS - 1) * TILE_SIZE - player.getHeight()))
+        );
 
         // ------ Skill cast ------
         if (skillCooldown > 0) skillCooldown--;

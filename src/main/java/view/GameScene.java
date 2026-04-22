@@ -28,19 +28,22 @@ public class GameScene {
     private long frameCount = 0;
 
     private static final int TILE_SIZE = GameManager.TILE_SIZE;
-    private static final int WIDTH  = GameManager.MAP_COLS * TILE_SIZE;
-    private static final int HEIGHT = GameManager.MAP_ROWS * TILE_SIZE;
+    private static final int WINDOW_WIDTH = 960;
+    private static final int WINDOW_HEIGHT = 640;
+    
+    private double cameraX = 0;
+    private double cameraY = 0;
 
     public GameScene(GameManager gm) {
         this.gameManager = gm;
     }
 
     public Scene buildScene() {
-        canvas = new Canvas(WIDTH, HEIGHT);
+        canvas = new Canvas(WINDOW_WIDTH, WINDOW_HEIGHT);
         Pane root = new Pane(canvas);
         // Prevent white background showing through transparent canvas areas
         root.setStyle("-fx-background-color: #1a1a2e;");
-        scene = new Scene(root, WIDTH, HEIGHT);
+        scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
         // NOTE: key handlers are attached by Main.java — do NOT set them here
 
         // Game loop ~60 fps
@@ -56,7 +59,7 @@ public class GameScene {
                     t.printStackTrace();
                     GraphicsContext gc = canvas.getGraphicsContext2D();
                     gc.setFill(Color.BLACK);
-                    gc.fillRect(0, 0, WIDTH, HEIGHT);
+                    gc.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
                     gc.setFill(Color.RED);
                     gc.setFont(Font.font("Menlo", 14));
                     gc.fillText("GAME CRASHED:\n" + t.toString(), 20, 30);
@@ -76,12 +79,30 @@ public class GameScene {
     //  MAIN RENDER
     // ═══════════════════════════════════════════════════════════════════════
     private void render(GraphicsContext gc) {
-        gc.clearRect(0, 0, WIDTH, HEIGHT);
+        Player p = gameManager.getPlayer();
+        if (p != null) {
+            cameraX = p.getX() + p.getWidth() / 2.0 - WINDOW_WIDTH / 2.0;
+            cameraY = p.getY() + p.getHeight() / 2.0 - WINDOW_HEIGHT / 2.0;
+
+            double maxCamX = GameManager.MAP_COLS * GameManager.TILE_SIZE - WINDOW_WIDTH;
+            double maxCamY = GameManager.MAP_ROWS * GameManager.TILE_SIZE - WINDOW_HEIGHT;
+            cameraX = Math.max(0, Math.min(cameraX, maxCamX));
+            cameraY = Math.max(0, Math.min(cameraY, maxCamY));
+        }
+
+        gc.clearRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
         drawBackground(gc);
+        
+        gc.save();
+        gc.translate(-cameraX, -cameraY);
+
         drawMap(gc);
         drawSkills(gc);
         drawEnemies(gc);
         drawPlayer(gc);
+        
+        gc.restore();
+        
         drawHUD(gc);
 
         GameState state = gameManager.getGameState();
@@ -94,7 +115,7 @@ public class GameScene {
     // ═══════════════════════════════════════════════════════════════════════
     private void drawBackground(GraphicsContext gc) {
         gc.setFill(Color.web("#1a1a2e"));
-        gc.fillRect(0, 0, WIDTH, HEIGHT);
+        gc.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -102,8 +123,13 @@ public class GameScene {
     // ═══════════════════════════════════════════════════════════════════════
     private void drawMap(GraphicsContext gc) {
         int[][] map = gameManager.getTileMap();
-        for (int row = 0; row < GameManager.MAP_ROWS; row++) {
-            for (int col = 0; col < GameManager.MAP_COLS; col++) {
+        int startCol = Math.max(0, (int) (cameraX / TILE_SIZE));
+        int endCol = Math.min(GameManager.MAP_COLS, startCol + WINDOW_WIDTH / TILE_SIZE + 2);
+        int startRow = Math.max(0, (int) (cameraY / TILE_SIZE));
+        int endRow = Math.min(GameManager.MAP_ROWS, startRow + WINDOW_HEIGHT / TILE_SIZE + 2);
+
+        for (int row = startRow; row < endRow; row++) {
+            for (int col = startCol; col < endCol; col++) {
                 double x = col * TILE_SIZE, y = row * TILE_SIZE;
                 int tile = map[row][col];
                 switch (tile) {
@@ -607,23 +633,23 @@ public class GameScene {
         gc.fillText("EXP  " + p.getExp() + "/100", panX + 10, panY + 64);
 
         // ── Skill slot bottom-left ──
-        drawSkillSlot(gc, 12, HEIGHT - 58);
+        drawSkillSlot(gc, 12, WINDOW_HEIGHT - 58);
 
         // ── Enemy count (top-right) ──
         int eCount = gameManager.getEnemies().size();
         gc.setFill(Color.color(0.05, 0.05, 0.15, 0.70));
-        gc.fillRoundRect(WIDTH - 130, 12, 118, 32, 8, 8);
+        gc.fillRoundRect(WINDOW_WIDTH - 130, 12, 118, 32, 8, 8);
         gc.setStroke(Color.color(0.8, 0.2, 0.2, 0.6));
         gc.setLineWidth(1);
-        gc.strokeRoundRect(WIDTH - 130, 12, 118, 32, 8, 8);
+        gc.strokeRoundRect(WINDOW_WIDTH - 130, 12, 118, 32, 8, 8);
         gc.setFill(Color.web("#e74c3c"));
         gc.setFont(Font.font("Arial", FontWeight.BOLD, 11));
-        gc.fillText("⚔ Enemies: " + eCount, WIDTH - 122, panY + 22);
+        gc.fillText("⚔ Enemies: " + eCount, WINDOW_WIDTH - 122, panY + 22);
 
         // ── Controls hint ──
         gc.setFill(Color.color(1, 1, 1, 0.38));
         gc.setFont(Font.font("Arial", FontPosture.ITALIC, 9));
-        gc.fillText("WASD / ↑↓←→  Move   |   J  Fireball   |   ESC  Menu", 10, HEIGHT - 8);
+        gc.fillText("WASD / ↑↓←→  Move   |   J  Fireball   |   ESC  Menu", 10, WINDOW_HEIGHT - 8);
     }
 
     private void drawSkillSlot(GraphicsContext gc, double x, double y) {
@@ -673,11 +699,11 @@ public class GameScene {
     private void drawEndOverlay(GraphicsContext gc, boolean win) {
         // Dimmed background
         gc.setFill(Color.color(0, 0, 0, 0.72));
-        gc.fillRect(0, 0, WIDTH, HEIGHT);
+        gc.fillRect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 
         // Central panel
         double panW = 500, panH = 200;
-        double panX = WIDTH / 2.0 - panW / 2, panY = HEIGHT / 2.0 - panH / 2;
+        double panX = WINDOW_WIDTH / 2.0 - panW / 2, panY = WINDOW_HEIGHT / 2.0 - panH / 2;
         gc.setFill(win ? Color.color(0.05, 0.2, 0.05, 0.95) : Color.color(0.2, 0.02, 0.02, 0.95));
         gc.fillRoundRect(panX, panY, panW, panH, 20, 20);
         gc.setStroke(win ? Color.web("#2ecc71") : Color.web("#e74c3c"));
@@ -688,17 +714,17 @@ public class GameScene {
         gc.setFill(win ? Color.web("#2ecc71") : Color.web("#e74c3c"));
         gc.setFont(Font.font("Arial", FontWeight.BOLD, 58));
         gc.setTextAlign(TextAlignment.CENTER);
-        gc.fillText(win ? "VICTORY!" : "GAME OVER", WIDTH / 2.0, panY + 90);
+        gc.fillText(win ? "VICTORY!" : "GAME OVER", WINDOW_WIDTH / 2.0, panY + 90);
 
         // Subtitle
         gc.setFill(Color.color(1, 1, 1, 0.75));
         gc.setFont(Font.font("Arial", 18));
-        gc.fillText(win ? "The Robot Boss has been defeated!" : "The Goblin has fallen...", WIDTH / 2.0, panY + 130);
+        gc.fillText(win ? "The Robot Boss has been defeated!" : "The Goblin has fallen...", WINDOW_WIDTH / 2.0, panY + 130);
 
         // Return hint
         gc.setFill(Color.color(1, 1, 1, 0.5));
         gc.setFont(Font.font("Arial", FontPosture.ITALIC, 14));
-        gc.fillText("Press  ESC  to return to menu", WIDTH / 2.0, panY + 168);
+        gc.fillText("Press  ESC  to return to menu", WINDOW_WIDTH / 2.0, panY + 168);
         gc.setTextAlign(TextAlignment.LEFT);
     }
 

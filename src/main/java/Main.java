@@ -45,8 +45,8 @@ public class Main extends Application {
         // Resize stage to fit the game canvas (960 x 640)
         primaryStage.setResizable(true);
         primaryStage.setScene(scene);
-        primaryStage.setWidth(GameManager.MAP_COLS * GameManager.TILE_SIZE + 16);
-        primaryStage.setHeight(GameManager.MAP_ROWS * GameManager.TILE_SIZE + 39);
+        primaryStage.setWidth(960 + 16);
+        primaryStage.setHeight(640 + 39);
         primaryStage.setResizable(false);
     }
 
@@ -59,8 +59,8 @@ public class Main extends Application {
 
         primaryStage.setResizable(true);
         primaryStage.setScene(scene);
-        primaryStage.setWidth(GameManager.MAP_COLS * GameManager.TILE_SIZE + 16);
-        primaryStage.setHeight(GameManager.MAP_ROWS * GameManager.TILE_SIZE + 39);
+        primaryStage.setWidth(960 + 16);
+        primaryStage.setHeight(640 + 39);
         primaryStage.setResizable(false);
     }
 
