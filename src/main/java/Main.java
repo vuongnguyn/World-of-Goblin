@@ -14,6 +14,7 @@ public class Main extends Application {
     private GameScene gameScene;
     private boolean hasSave = false;
 
+    // show menu scene in the game window.
     public void showMenu() {
         primaryStage.setResizable(false);
         MenuScene menu = new MenuScene();
