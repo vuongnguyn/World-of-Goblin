@@ -1,17 +1,11 @@
 package controller;
 
 import javafx.scene.input.KeyCode;
-import model.characters.CharacterObject;
-import model.characters.Enemy;
-import model.characters.Monster;
-import model.characters.Player;
-import model.characters.Robber;
-import model.characters.RobotBoss;
-import model.characters.Terrorist;
-import model.skills.Fireball;
+import model.characters.*;
+import model.environment.*;
+import model.buildings.*;
+import model.items.Item;
 import model.skills.Skill;
-
-
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -21,94 +15,141 @@ import java.util.Set;
 
 public class GameManager {
     public static final int TILE_SIZE = 32;
-    public static final int MAP_COLS = 100;
-    public static final int MAP_ROWS = 100;
+    public static final int MAP_COLS = 50; // Bigger map
+    public static final int MAP_ROWS = 40;
 
     private Player player;
     private GameState gameState;
     private List<Enemy> enemies;
-    private List<Skill> activeSkills;
-    private int[][] tileMap;
-    private boolean bossSpawned = false;
-    private RobotBoss boss;
+    private List<Skill> activeSkills; // Keep for future use or ranged enemies
+    private List<ResourceNode> resources;
+    private List<Building> buildings;
 
     private final Set<KeyCode> pressedKeys = new HashSet<>();
 
-    // Skill cooldown (frames)
-    private int skillCooldown = 0;
-    private static final int SKILL_COOLDOWN_FRAMES = 30;
-    private static final int SKILL_MANA_COST = 20;
+    // Day/Night Cycle (60fps)
+    // Day = 3600 frames (60s), Night = 1800 frames (30s)
+    private long gameTime = 0;
+    private static final int DAY_LENGTH = 3600;
+    private static final int NIGHT_LENGTH = 1800;
+
+    // Melee / Interaction
+    private int actionCooldown = 0;
+    
+    // Hotbar selection (0: empty hand, 1: Campfire, 2: Wall, 3: Eat Berry)
+    private int selectedSlot = 0;
 
     public enum GameState {
-        MENU,
-        PLAYING,
-        PAUSED,
-        GAME_OVER,
-        WIN
+        MENU, PLAYING, PAUSED, GAME_OVER, WIN
     }
 
     public void initializeGame() {
+        // Spawn in center
         player = new Player(MAP_COLS * TILE_SIZE / 2.0, MAP_ROWS * TILE_SIZE / 2.0, 40, 40, "", 3.0, 150, 20);
         enemies = new ArrayList<>();
         activeSkills = new ArrayList<>();
-        tileMap = generateMap();
+        resources = new ArrayList<>();
+        buildings = new ArrayList<>();
+        
+        generateWorld();
+        
+        gameTime = 0;
         gameState = GameState.PLAYING;
     }
 
-    private int[][] generateMap() {
-        int[][] map = new int[MAP_ROWS][MAP_COLS];
-        for (int r = 0; r < MAP_ROWS; r++) {
-            for (int c = 0; c < MAP_COLS; c++) {
-                if (r == 0 || r == MAP_ROWS - 1 || c == 0 || c == MAP_COLS - 1) {
-                    map[r][c] = 1; // Wall
-                } else {
-                    map[r][c] = 0; // Floor
-                    // Random small walls
-                    if (Math.random() < 0.05) {
-                        map[r][c] = 1;
-                    } else if (Math.random() < 0.02) { // Random enemies
-                        double rand = Math.random();
-                        if (rand < 0.4) map[r][c] = 2; // Robber
-                        else if (rand < 0.8) map[r][c] = 3; // Monster
-                        else map[r][c] = 4; // Terrorist
-                        
-                        double ex = c * TILE_SIZE;
-                        double ey = r * TILE_SIZE;
-                        if (rand < 0.4) enemies.add(new Robber(ex, ey));
-                        else if (rand < 0.8) enemies.add(new Monster(ex, ey));
-                        else enemies.add(new Terrorist(ex, ey));
-                    }
-                }
-            }
+    private void generateWorld() {
+        // Procedural scatter
+        for (int i = 0; i < 150; i++) {
+            double rx = Math.random() * MAP_COLS * TILE_SIZE;
+            double ry = Math.random() * MAP_ROWS * TILE_SIZE;
+            double type = Math.random();
+            if (type < 0.6) resources.add(new Tree(rx, ry));
+            else if (type < 0.85) resources.add(new Rock(rx, ry));
+            else resources.add(new BerryBush(rx, ry));
         }
-        // clear spawn area
-        int cx = MAP_COLS / 2;
-        int cy = MAP_ROWS / 2;
-        for (int r = cy - 4; r <= cy + 4; r++) {
-            for (int c = cx - 4; c <= cx + 4; c++) {
-                if (r >= 0 && r < MAP_ROWS && c >= 0 && c < MAP_COLS) {
-                    map[r][c] = 0;
-                }
-            }
-        }
-        // remove enemies from spawn area
-        enemies.removeIf(e -> Math.hypot(e.getX() - cx * TILE_SIZE, e.getY() - cy * TILE_SIZE) < 200);
-
-        return map;
     }
-
-    // Map loaded dynamically now, keeping empty block for removed functions.
 
     public void handleInput(KeyCode keyCode, boolean isPressed) {
         if (isPressed) {
             pressedKeys.add(keyCode);
+            
+            // Hotbar selection
+            if (keyCode == KeyCode.DIGIT1) selectedSlot = 1; // Campfire
+            if (keyCode == KeyCode.DIGIT2) selectedSlot = 2; // Wooden Wall
+            if (keyCode == KeyCode.DIGIT3) selectedSlot = 3; // Eat Berry
+            if (keyCode == KeyCode.DIGIT4) selectedSlot = 0; // Empty Hand
+            
+            // Interact / Attack / Build
+            if (keyCode == KeyCode.SPACE || keyCode == KeyCode.E) {
+                performAction();
+            }
         } else {
             pressedKeys.remove(keyCode);
+        }
+    }
+    
+    private void performAction() {
+        if (actionCooldown > 0) return;
+        
+        // 1. Eat Berry
+        if (selectedSlot == 3) {
+            player.eat(Item.BERRY);
+            actionCooldown = 15;
+            return;
+        }
+        
+        // 2. Build Campfire
+        if (selectedSlot == 1) {
+            if (player.getInventory().getOrDefault(Item.WOOD, 0) >= 5 &&
+                player.getInventory().getOrDefault(Item.STONE, 0) >= 2) {
+                player.addItem(Item.WOOD, -5);
+                player.addItem(Item.STONE, -2);
+                buildings.add(new Campfire(player.getX() + 50, player.getY()));
+            }
+            actionCooldown = 20;
+            return;
+        }
+        
+        // 3. Build Wall
+        if (selectedSlot == 2) {
+            if (player.getInventory().getOrDefault(Item.WOOD, 0) >= 2) {
+                player.addItem(Item.WOOD, -2);
+                buildings.add(new WoodenWall(player.getX() + 50, player.getY()));
+            }
+            actionCooldown = 20;
+            return;
+        }
+        
+        // 4. Melee hit (Gather resources or Attack enemies)
+        actionCooldown = 20;
+        
+        // Check enemies first
+        for (Enemy e : enemies) {
+            if (distance(player, e) < 60) {
+                e.takeDamage(player.getDamage());
+                return; // hit only one thing
+            }
+        }
+        
+        // Check resources
+        for (ResourceNode r : resources) {
+            if (!r.isDepleted() && distance(player, r) < 60) {
+                r.hit();
+                if (r.isDepleted()) {
+                    player.addItem(r.getDropItem(), r.getDropAmount());
+                }
+                return;
+            }
         }
     }
 
     public void update() {
         if (gameState != GameState.PLAYING) return;
+        
+        gameTime++;
+        if (actionCooldown > 0) actionCooldown--;
+        
+        player.updateSurvivalStats();
 
         // ------ Player movement ------
         double pdx = 0, pdy = 0;
@@ -118,122 +159,110 @@ public class GameManager {
         if (pressedKeys.contains(KeyCode.S) || pressedKeys.contains(KeyCode.DOWN)) pdy = 1;
         player.setDx(pdx);
         player.setDy(pdy);
+        
+        // Basic wall collision for player
+        double oldX = player.getX(), oldY = player.getY();
         player.update();
-        player.setPosition(
-            Math.max(TILE_SIZE, Math.min(player.getX(), (MAP_COLS - 1) * TILE_SIZE - player.getWidth())),
-            Math.max(TILE_SIZE, Math.min(player.getY(), (MAP_ROWS - 1) * TILE_SIZE - player.getHeight()))
-        );
-
-        // ------ Skill cast ------
-        if (skillCooldown > 0) skillCooldown--;
-        if (pressedKeys.contains(KeyCode.J) && skillCooldown == 0 && player.useMana(SKILL_MANA_COST)) {
-            fireballToward(findNearestEnemy());
-            skillCooldown = SKILL_COOLDOWN_FRAMES;
-        }
-
-        // ------ Update & move enemies ------
-        for (Enemy e : enemies) {
-            e.chase(player);
-            e.update();
-            // Melee damage to player
-            if (intersects(player, e)) {
-                player.takeDamage(e.getDamage() / 60); // per-frame approximation
+        for (Building b : buildings) {
+            if (b instanceof WoodenWall && intersects(player, b)) {
+                player.setPosition(oldX, oldY); // block movement
             }
         }
 
-        // ------ Update skills & collision ------
-        Iterator<Skill> it = activeSkills.iterator();
-        while (it.hasNext()) {
-            Skill s = it.next();
-            s.update();
-            if (!s.isActive()) { it.remove(); continue; }
-            // Out of screen
-            if (s.getX() < 0 || s.getX() > MAP_COLS * TILE_SIZE || s.getY() < 0 || s.getY() > MAP_ROWS * TILE_SIZE) {
-                s.deactivate(); it.remove(); continue;
-            }
-            // Hit enemies
-            boolean hit = false;
-            for (Enemy e : enemies) {
-                if (s.checkCollision(e)) {
-                    e.takeDamage(s.getDamage());
-                    s.deactivate();
-                    hit = true;
-                    break;
-                }
-            }
-            if (hit) { it.remove(); continue; }
-            // Hit boss
-            if (boss != null && s.checkCollision(boss)) {
-                boss.takeDamage(s.getDamage());
-                s.deactivate();
-                it.remove();
-            }
+        // ------ Night Spawning ------
+        if (isNight() && Math.random() < 0.02) {
+            double sx = Math.random() < 0.5 ? player.getX() - 500 : player.getX() + 500;
+            double sy = Math.random() < 0.5 ? player.getY() - 500 : player.getY() + 500;
+            if (Math.random() < 0.3) enemies.add(new Monster(sx, sy));
+            else enemies.add(new Robber(sx, sy));
         }
 
-        // ------ Remove dead enemies & give exp ------
+        // ------ Update enemies ------
         Iterator<Enemy> ei = enemies.iterator();
         while (ei.hasNext()) {
             Enemy e = ei.next();
+            e.chase(player);
+            
+            double eOldX = e.getX(), eOldY = e.getY();
+            e.update();
+            
+            // Enemy vs Wall collision
+            for (Building b : buildings) {
+                if (b instanceof WoodenWall && !b.isDestroyed() && intersects(e, b)) {
+                    e.setPosition(eOldX, eOldY);
+                    b.takeDamage(1); // Enemies slowly break walls
+                }
+            }
+
+            if (intersects(player, e)) {
+                player.takeDamage(e.getDamage() / 60); 
+            }
+            
+            // Daylight burns some enemies
+            if (!isNight() && e instanceof Monster) {
+                e.takeDamage(1);
+            }
+            
             if (!e.isAlive()) {
                 player.gainExp(30);
                 ei.remove();
             }
         }
-
-        // ------ Spawn boss when all enemies dead and not spawned ------
-        if (enemies.isEmpty() && !bossSpawned) {
-            boss = new RobotBoss(MAP_COLS * TILE_SIZE / 2.0, MAP_ROWS * TILE_SIZE / 2.0);
-            enemies.add(boss);
-            bossSpawned = true;
+        
+        // ------ Update Buildings & Resources ------
+        Iterator<Building> bi = buildings.iterator();
+        while (bi.hasNext()) {
+            Building b = bi.next();
+            b.update();
+            if (b.isDestroyed()) {
+                bi.remove();
+            }
+        }
+        
+        for (ResourceNode r : resources) {
+            if (r instanceof BerryBush) {
+                ((BerryBush) r).updateRegrowth();
+            }
         }
 
         // ------ Check win / lose ------
         if (!player.isAlive()) {
             gameState = GameState.GAME_OVER;
         }
-        if (bossSpawned && !boss.isAlive()) {
-            gameState = GameState.WIN;
-        }
-
-        // ------ Mana regen ------
-        player.restoreMana(1);
+    }
+    
+    public boolean isNight() {
+        long cycleTime = gameTime % (DAY_LENGTH + NIGHT_LENGTH);
+        return cycleTime > DAY_LENGTH;
+    }
+    
+    public double getDayProgress() {
+        return (double) (gameTime % (DAY_LENGTH + NIGHT_LENGTH)) / (DAY_LENGTH + NIGHT_LENGTH);
     }
 
-    private void fireballToward(Enemy target) {
-        double dx = 1, dy = 0;
-        if (target != null) {
-            double diffX = target.getX() - player.getX();
-            double diffY = target.getY() - player.getY();
-            double dist = Math.sqrt(diffX * diffX + diffY * diffY);
-            if (dist > 0) { dx = diffX / dist; dy = diffY / dist; }
-        }
-        activeSkills.add(new Fireball(player.getX() + player.getWidth() / 2, player.getY() + player.getHeight() / 2, dx, dy, player));
+    private double distance(GameObject a, GameObject b) {
+        double dx = (a.getX() + a.getWidth()/2) - (b.getX() + b.getWidth()/2);
+        double dy = (a.getY() + a.getHeight()/2) - (b.getY() + b.getHeight()/2);
+        return Math.sqrt(dx*dx + dy*dy);
     }
 
-    private Enemy findNearestEnemy() {
-        Enemy nearest = null;
-        double minDist = Double.MAX_VALUE;
-        for (Enemy e : enemies) {
-            double dist = Math.hypot(e.getX() - player.getX(), e.getY() - player.getY());
-            if (dist < minDist) { minDist = dist; nearest = e; }
-        }
-        return nearest;
-    }
-
-    private boolean intersects(CharacterObject a, CharacterObject b) {
+    private boolean intersects(GameObject a, GameObject b) {
         return a.getX() < b.getX() + b.getWidth() &&
                a.getX() + a.getWidth() > b.getX() &&
                a.getY() < b.getY() + b.getHeight() &&
                a.getY() + a.getHeight() > b.getY();
     }
 
-    // ---- Getters for view ----
+    // ---- Getters ----
     public Player getPlayer() { return player; }
     public List<Enemy> getEnemies() { return enemies; }
     public List<Skill> getActiveSkills() { return activeSkills; }
-    public int[][] getTileMap() { return tileMap; }
+    public List<ResourceNode> getResources() { return resources; }
+    public List<Building> getBuildings() { return buildings; }
     public GameState getGameState() { return gameState; }
-    public int getSkillCooldown() { return skillCooldown; }
-    public int getSkillCooldownMax() { return SKILL_COOLDOWN_FRAMES; }
     public void setGameState(GameState state) { this.gameState = state; }
+    public int getSelectedSlot() { return selectedSlot; }
+    
+    // We don't use tilemap directly anymore
+    public int[][] getTileMap() { return new int[0][0]; }
 }
